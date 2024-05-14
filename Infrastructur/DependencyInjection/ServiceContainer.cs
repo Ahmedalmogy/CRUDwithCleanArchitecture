@@ -42,7 +42,7 @@ namespace Infrastructur.DependencyInjection
             //adding cors policy
             services.AddCors(options =>
             {
-                options.AddPolicy("WebUi",
+                options.AddPolicy("WebUI",
                     builder => builder
                     .WithOrigins("https://localhost:7033")
                     .AllowAnyMethod()
