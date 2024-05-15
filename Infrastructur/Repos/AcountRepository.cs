@@ -12,13 +12,15 @@ using System.IdentityModel.Tokens.Jwt;
 
 using Mapster;
 using Application.Extensions;
+using Infrastructur.Data;
+using Microsoft.EntityFrameworkCore;
 
 
 
 namespace Infrastructur.Repos
 {
     public class AcountRepository(RoleManager<IdentityRole> rolemanager, UserManager<ApplicationUser> usermanager,
-        IConfiguration config, SignInManager<ApplicationUser> signInManager) : IAccount
+        IConfiguration config, SignInManager<ApplicationUser> signInManager,AppDbContext context) : IAccount
     {
         private async Task <ApplicationUser>   FindUserByEmailAsync(string email) 
             => await usermanager.FindByEmailAsync(email);
@@ -153,9 +155,66 @@ namespace Infrastructur.Repos
             throw new NotImplementedException();
         }
 
-        public Task<LoginResponseDTO> LoginAccountAsync(LoginDTO model)
+        public async Task<LoginResponseDTO> LoginAccountAsync(LoginDTO model)
+        {
+            try
+            {
+                var user = await FindUserByEmailAsync(model.Email);
+                if (user is null)
+                    return new LoginResponseDTO(false, "User Not Found");
+                SignInResult result;
+                try
+                {
+                    result = await signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+                }
+                catch 
+                {
+                    return new LoginResponseDTO(false, "Invalid Password");
+                }
+                if (result.Succeeded) return new LoginResponseDTO(false, "invalid credentials");
+                string jwttoken = await GenerateToken(user);
+                string refreshtoken = GenerateRefreshToken();
+                if (string.IsNullOrEmpty(jwttoken) || string.IsNullOrEmpty(refreshtoken))
+                { return new LoginResponseDTO(false, "Error occured while logging in account , please contact adminsraetaion"); }
+                else
+                {
+                    var SaveResult = await SaveRefreshToken(user.Id, refreshtoken);
+                    if (SaveResult.Flag)
+                        return new LoginResponseDTO(true, $"user {user.Name} logged in successfully", jwttoken, refreshtoken);
+                    else
+                        return new LoginResponseDTO();
+                }
+                  
+            }
+            catch(Exception ex)
+            {
+                return new LoginResponseDTO(false, ex.Message);
+            }
+        }
+
+        public Task<LoginResponseDTO> RefreshTokenAsync(RefreshTokenDTO model)
         {
             throw new NotImplementedException();
         }
+        private async Task<GeneralResponseDTO> SaveRefreshToken(string userID, string Token) 
+        {
+            try 
+            { 
+                var user = await context.RefreshTokens.FirstOrDefaultAsync(t=>t.UserID==userID);
+                if (user==null)
+                    context.RefreshTokens.Add(new RefreshToken() { UserID = userID, Token = Token });
+                else 
+                    user.Token = Token;
+                await context.SaveChangesAsync();
+                return new GeneralResponseDTO(true , null!);
+               
+            }
+            catch(Exception ex)
+            {
+                return new GeneralResponseDTO(false,ex.Message);
+            }
+            
+        }
     }
+
 }
