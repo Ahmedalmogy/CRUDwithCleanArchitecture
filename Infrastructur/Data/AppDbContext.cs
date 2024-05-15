@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Domain.Entity.Authentication;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,6 @@ namespace Infrastructur.Data
 
         }
 
-
+        public DbSet<RefreshToken> RefreshTokens { get; set; } 
     }
 }
